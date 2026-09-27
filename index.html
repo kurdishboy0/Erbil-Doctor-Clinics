@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Erbil Doctor Finder | دۆکتۆری هەولێر</title>
+  <meta name="description" content="Find doctors and clinics in Erbil, Kurdistan Region. Search by specialty, area, and clinic name. Rate and review your doctors.">
+  <meta name="theme-color" content="#1a73e8">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <span class="logo-icon">🏥</span>
+          <div class="logo-text">
+            <h1>Erbil Doctor Finder</h1>
+            <p class="tagline">Your health guide in Kurdistan</p>
+          </div>
+        </div>
+        <div class="header-stats">
+          <div class="stat">
+            <span class="stat-number" id="totalDoctors">0</span>
+            <span class="stat-label">Doctors</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number" id="totalAreas">0</span>
+            <span class="stat-label">Areas</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number" id="totalSpecialties">0</span>
+            <span class="stat-label">Specialties</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Search & Filters -->
+  <section class="search-section">
+    <div class="container">
+      <div class="search-box">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search doctor name, specialty, or clinic..." autocomplete="off">
+          <button class="clear-btn" id="clearSearch" title="Clear search" style="display:none;">✕</button>
+        </div>
+      </div>
+      
+      <div class="filters">
+        <div class="filter-group">
+          <label for="specialtyFilter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            Specialty
+          </label>
+          <select id="specialtyFilter">
+            <option value="">All Specialties</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label for="areaFilter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            Area
+          </label>
+          <select id="areaFilter">
+            <option value="">All Areas</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label for="sortFilter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4"/>
+            </svg>
+            Sort By
+          </label>
+          <select id="sortFilter">
+            <option value="name">Name (A-Z)</option>
+            <option value="name-desc">Name (Z-A)</option>
+            <option value="rating">Highest Rated</option>
+            <option value="area">Area</option>
+            <option value="specialty">Specialty</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="active-filters" id="activeFilters" style="display:none;"></div>
+      
+      <div class="results-info">
+        <span id="resultsCount">Showing 0 doctors</span>
+        <button class="reset-btn" id="resetFilters" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          Reset All
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Specialty Quick Links -->
+  <section class="specialty-chips-section">
+    <div class="container">
+      <div class="specialty-chips" id="specialtyChips"></div>
+    </div>
+  </section>
+
+  <!-- Doctor Cards Grid -->
+  <main class="main-content">
+    <div class="container">
+      <div class="doctors-grid" id="doctorsGrid"></div>
+      
+      <div class="no-results" id="noResults" style="display:none;">
+        <div class="no-results-icon">🔍</div>
+        <h3>No doctors found</h3>
+        <p>Try adjusting your search or filters</p>
+        <button class="btn btn-primary" onclick="resetAllFilters()">Reset Filters</button>
+      </div>
+      
+      <div class="load-more-wrapper" id="loadMoreWrapper" style="display:none;">
+        <button class="btn btn-outline" id="loadMoreBtn">Load More Doctors</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Doctor Detail Modal -->
+  <div class="modal-overlay" id="doctorModal">
+    <div class="modal">
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-info">
+          <p><strong>Erbil Doctor Finder</strong></p>
+          <p>A community guide to help patients find doctors and clinics in Erbil, Kurdistan Region, Iraq.</p>
+          <p class="footer-note">⚠️ Information may not be fully up-to-date. Please verify by calling the clinic directly.</p>
+        </div>
+        <div class="footer-links">
+          <p>Made with ❤️ for Erbil</p>
+          <p>&copy; 2026 Erbil Doctor Finder</p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Back to Top -->
+  <button class="back-to-top" id="backToTop" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M18 15l-6-6-6 6"/>
+    </svg>
+  </button>
+
+  <script src="doctors.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
