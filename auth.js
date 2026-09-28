@@ -1,5 +1,5 @@
 /* =============================================
-   AUTH MODULE - Authentication & Authorization
+   AUTH MODULE - Supabase Authentication & Authorization
    ============================================= */
 
 (function() {
@@ -14,24 +14,34 @@
   // AUTH STATE LISTENER
   // ==========================================
   function initAuth() {
-    if (!window.firebaseReady) {
+    if (!window.firebaseReady || !supabaseClient) {
       updateUIForGuest();
       return;
     }
 
-    fbAuth.onAuthStateChanged(async (user) => {
-      if (user) {
-        currentUser = user;
-        await loadUserProfile(user);
-        updateUIForLoggedIn(user);
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        currentUser = session.user;
+        await loadUserProfile(session.user);
+        updateUIForLoggedIn(session.user);
       } else {
         currentUser = null;
         currentUserRole = null;
         currentUserProfile = null;
         updateUIForGuest();
       }
-      // Notify callbacks
       authStateCallbacks.forEach(cb => cb(currentUser, currentUserRole));
+    });
+
+    // Check existing session
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        currentUser = session.user;
+        loadUserProfile(session.user).then(() => {
+          updateUIForLoggedIn(session.user);
+          authStateCallbacks.forEach(cb => cb(currentUser, currentUserRole));
+        });
+      }
     });
   }
 
@@ -40,32 +50,38 @@
   // ==========================================
   async function loadUserProfile(user) {
     try {
-      const doc = await fbDb.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        currentUserProfile = doc.data();
-        currentUserRole = currentUserProfile.role;
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        currentUserProfile = data;
+        currentUserRole = data.role;
       } else {
-        // First time login - create profile
-        const role = (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) 
-          ? ROLES.ADMIN 
+        // First time login — create profile
+        const role = (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase())
+          ? ROLES.ADMIN
           : ROLES.PATIENT;
-        
+
         currentUserProfile = {
-          uid: user.uid,
+          id: user.id,
           email: user.email,
-          displayName: user.displayName || user.email.split('@')[0],
+          display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0],
           role: role,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastLogin: firebase.firestore.FieldValue.serverTimestamp()
         };
-        await fbDb.collection('users').doc(user.uid).set(currentUserProfile);
+
+        await supabaseClient.from('profiles').upsert(currentUserProfile);
         currentUserRole = role;
       }
-      
+
       // Update last login
-      await fbDb.collection('users').doc(user.uid).update({
-        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      await supabaseClient
+        .from('profiles')
+        .update({ last_login: new Date().toISOString() })
+        .eq('id', user.id);
+
     } catch (e) {
       console.error('Error loading user profile:', e);
       currentUserRole = ROLES.PATIENT;
@@ -76,138 +92,133 @@
   // REGISTER
   // ==========================================
   async function register(email, password, displayName) {
-    if (!window.firebaseReady) throw new Error('Firebase not configured');
-    
-    try {
-      const cred = await fbAuth.createUserWithEmailAndPassword(email, password);
-      if (displayName) {
-        await cred.user.updateProfile({ displayName: displayName });
+    if (!supabaseClient) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: displayName }
       }
-      return cred.user;
-    } catch (e) {
-      throw formatAuthError(e);
+    });
+
+    if (error) throw new Error(error.message);
+    
+    if (data.user && !data.session) {
+      // Email confirmation required
+      throw new Error('Check your email for a confirmation link!');
     }
+    
+    return data.user;
   }
 
   // ==========================================
   // LOGIN
   // ==========================================
   async function login(email, password) {
-    if (!window.firebaseReady) throw new Error('Firebase not configured');
-    
-    try {
-      const cred = await fbAuth.signInWithEmailAndPassword(email, password);
-      return cred.user;
-    } catch (e) {
-      throw formatAuthError(e);
-    }
+    if (!supabaseClient) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw new Error(error.message);
+    return data.user;
   }
 
   // ==========================================
   // GOOGLE SIGN IN
   // ==========================================
   async function googleSignIn() {
-    if (!window.firebaseReady) throw new Error('Firebase not configured');
-    
-    try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      const cred = await fbAuth.signInWithPopup(provider);
-      return cred.user;
-    } catch (e) {
-      throw formatAuthError(e);
-    }
+    if (!supabaseClient) throw new Error('Supabase not configured');
+
+    const { data, error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) throw new Error(error.message);
   }
 
   // ==========================================
   // LOGOUT
   // ==========================================
   async function logout() {
-    if (!window.firebaseReady) return;
-    await fbAuth.signOut();
+    if (!supabaseClient) return;
+    await supabaseClient.auth.signOut();
   }
 
   // ==========================================
   // PASSWORD RESET
   // ==========================================
   async function resetPassword(email) {
-    if (!window.firebaseReady) throw new Error('Firebase not configured');
-    
-    try {
-      await fbAuth.sendPasswordResetEmail(email);
-    } catch (e) {
-      throw formatAuthError(e);
-    }
+    if (!supabaseClient) throw new Error('Supabase not configured');
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+
+    if (error) throw new Error(error.message);
   }
 
   // ==========================================
   // AUTHORIZATION CHECKS
   // ==========================================
-  function isLoggedIn() {
-    return currentUser !== null;
-  }
-
-  function isAdmin() {
-    return currentUserRole === ROLES.ADMIN;
-  }
-
-  function isClinicAssistant() {
-    return currentUserRole === ROLES.CLINIC_ASSISTANT;
-  }
-
-  function isPatient() {
-    return currentUserRole === ROLES.PATIENT;
-  }
-
-  function canEditDoctors() {
-    return currentUserRole === ROLES.ADMIN || currentUserRole === ROLES.CLINIC_ASSISTANT;
-  }
-
-  function canManageUsers() {
-    return currentUserRole === ROLES.ADMIN;
-  }
-
-  function canDeleteDoctors() {
-    return currentUserRole === ROLES.ADMIN;
-  }
-
-  function canAddDoctors() {
-    return currentUserRole === ROLES.ADMIN;
-  }
+  function isLoggedIn() { return currentUser !== null; }
+  function isAdmin() { return currentUserRole === ROLES.ADMIN; }
+  function isClinicAssistant() { return currentUserRole === ROLES.CLINIC_ASSISTANT; }
+  function isPatient() { return currentUserRole === ROLES.PATIENT; }
+  function canEditDoctors() { return currentUserRole === ROLES.ADMIN || currentUserRole === ROLES.CLINIC_ASSISTANT; }
+  function canManageUsers() { return currentUserRole === ROLES.ADMIN; }
+  function canDeleteDoctors() { return currentUserRole === ROLES.ADMIN; }
+  function canAddDoctors() { return currentUserRole === ROLES.ADMIN; }
 
   // ==========================================
-  // FIRESTORE: RATINGS
+  // SUPABASE: RATINGS
   // ==========================================
   async function rateDoctorFirestore(doctorId, value) {
-    if (!window.firebaseReady || !currentUser) return null;
-    
-    const ratingRef = fbDb.collection('ratings').doc(`${currentUser.uid}_${doctorId}`);
-    const doctorRatingRef = fbDb.collection('doctorRatings').doc(String(doctorId));
-    
+    if (!supabaseClient || !currentUser) return null;
+
     try {
-      // Get existing rating
-      const existingDoc = await ratingRef.get();
-      const oldValue = existingDoc.exists ? existingDoc.data().value : 0;
-      
-      // Save individual rating
-      await ratingRef.set({
-        userId: currentUser.uid,
-        doctorId: doctorId,
-        value: value,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      
-      // Update aggregate rating
-      const aggDoc = await doctorRatingRef.get();
-      if (aggDoc.exists) {
-        const data = aggDoc.data();
-        let newTotal = data.total - oldValue + value;
-        let newCount = existingDoc.exists ? data.count : data.count + 1;
-        await doctorRatingRef.update({ total: newTotal, count: newCount });
-        return { total: newTotal, count: newCount, userRating: value };
-      } else {
-        await doctorRatingRef.set({ total: value, count: 1 });
-        return { total: value, count: 1, userRating: value };
-      }
+      // Upsert individual rating
+      const { error: ratingError } = await supabaseClient
+        .from('ratings')
+        .upsert({
+          user_id: currentUser.id,
+          doctor_id: doctorId,
+          value: value,
+        }, {
+          onConflict: 'user_id,doctor_id'
+        });
+
+      if (ratingError) throw ratingError;
+
+      // Recalculate aggregate
+      const { data: allRatings, error: aggError } = await supabaseClient
+        .from('ratings')
+        .select('value')
+        .eq('doctor_id', doctorId);
+
+      if (aggError) throw aggError;
+
+      const total = allRatings.reduce((sum, r) => sum + r.value, 0);
+      const count = allRatings.length;
+
+      // Upsert aggregate
+      await supabaseClient
+        .from('doctor_ratings')
+        .upsert({
+          doctor_id: doctorId,
+          total: total,
+          count: count,
+        }, {
+          onConflict: 'doctor_id'
+        });
+
+      return { total, count, userRating: value };
     } catch (e) {
       console.error('Error saving rating:', e);
       return null;
@@ -215,26 +226,37 @@
   }
 
   async function getDoctorRatingFirestore(doctorId) {
-    if (!window.firebaseReady) return null;
-    
+    if (!supabaseClient) return null;
+
     try {
-      const aggDoc = await fbDb.collection('doctorRatings').doc(String(doctorId)).get();
       let result = { total: 0, count: 0, userRating: 0 };
-      
-      if (aggDoc.exists) {
-        result.total = aggDoc.data().total;
-        result.count = aggDoc.data().count;
+
+      // Get aggregate
+      const { data: aggData } = await supabaseClient
+        .from('doctor_ratings')
+        .select('total, count')
+        .eq('doctor_id', doctorId)
+        .single();
+
+      if (aggData) {
+        result.total = aggData.total;
+        result.count = aggData.count;
       }
-      
+
       // Get user's own rating
       if (currentUser) {
-        const userRatingDoc = await fbDb.collection('ratings')
-          .doc(`${currentUser.uid}_${doctorId}`).get();
-        if (userRatingDoc.exists) {
-          result.userRating = userRatingDoc.data().value;
+        const { data: userRating } = await supabaseClient
+          .from('ratings')
+          .select('value')
+          .eq('user_id', currentUser.id)
+          .eq('doctor_id', doctorId)
+          .single();
+
+        if (userRating) {
+          result.userRating = userRating.value;
         }
       }
-      
+
       return result;
     } catch (e) {
       console.error('Error getting rating:', e);
@@ -243,59 +265,91 @@
   }
 
   // ==========================================
-  // FIRESTORE: DOCTOR MANAGEMENT
+  // SUPABASE: DOCTOR MANAGEMENT
   // ==========================================
   async function addDoctorFirestore(doctorData) {
     if (!canAddDoctors()) throw new Error('Unauthorized');
-    
-    const ref = await fbDb.collection('doctors').add({
-      ...doctorData,
-      addedBy: currentUser.uid,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    return ref.id;
+
+    const { data, error } = await supabaseClient
+      .from('doctors')
+      .insert({
+        name: doctorData.name,
+        specialty: doctorData.specialty,
+        area: doctorData.area,
+        clinic: doctorData.clinic || '',
+        phone: doctorData.phone || '',
+        added_by: currentUser.id,
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data.id;
   }
 
   async function updateDoctorFirestore(doctorId, updates) {
     if (!canEditDoctors()) throw new Error('Unauthorized');
-    
-    await fbDb.collection('doctors').doc(String(doctorId)).set({
-      ...updates,
-      updatedBy: currentUser.uid,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+
+    const { error } = await supabaseClient
+      .from('doctors')
+      .upsert({
+        id: doctorId,
+        name: updates.name,
+        specialty: updates.specialty,
+        area: updates.area,
+        clinic: updates.clinic || '',
+        phone: updates.phone || '',
+        updated_by: currentUser.id,
+      });
+
+    if (error) throw new Error(error.message);
   }
 
   async function deleteDoctorFirestore(doctorId) {
     if (!canDeleteDoctors()) throw new Error('Unauthorized');
-    
-    await fbDb.collection('doctors').doc(String(doctorId)).update({
-      deleted: true,
-      deletedBy: currentUser.uid,
-      deletedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+
+    const { error } = await supabaseClient
+      .from('doctors')
+      .update({ deleted: true, deleted_by: currentUser.id })
+      .eq('id', doctorId);
+
+    if (error) throw new Error(error.message);
   }
 
   // ==========================================
-  // FIRESTORE: USER MANAGEMENT (Admin only)
+  // SUPABASE: USER MANAGEMENT (Admin only)
   // ==========================================
   async function getAllUsers() {
     if (!canManageUsers()) throw new Error('Unauthorized');
-    
-    const snapshot = await fbDb.collection('users').orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(error.message);
+
+    // Map to consistent format
+    return data.map(u => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.display_name,
+      role: u.role,
+      lastLogin: u.last_login ? { toDate: () => new Date(u.last_login) } : null,
+      createdAt: u.created_at,
+    }));
   }
 
   async function updateUserRole(userId, newRole) {
     if (!canManageUsers()) throw new Error('Unauthorized');
     if (!Object.values(ROLES).includes(newRole)) throw new Error('Invalid role');
-    
-    await fbDb.collection('users').doc(userId).update({
-      role: newRole,
-      roleUpdatedBy: currentUser.uid,
-      roleUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+
+    const { error } = await supabaseClient
+      .from('profiles')
+      .update({ role: newRole, role_updated_by: currentUser.id })
+      .eq('id', userId);
+
+    if (error) throw new Error(error.message);
   }
 
   // ==========================================
@@ -305,36 +359,23 @@
     const authBtn = document.getElementById('authBtn');
     const userMenu = document.getElementById('userMenu');
     const adminLink = document.getElementById('adminLink');
-    
+
     if (authBtn) authBtn.style.display = 'none';
     if (userMenu) {
       userMenu.style.display = 'flex';
       const userName = userMenu.querySelector('.user-name');
       const userRole = userMenu.querySelector('.user-role');
       const userAvatar = userMenu.querySelector('.user-avatar-text');
-      
-      if (userName) userName.textContent = currentUserProfile?.displayName || user.email;
-      if (userRole) userRole.textContent = ROLE_LABELS[currentUserRole] || 'Patient';
-      if (userAvatar) userAvatar.textContent = (currentUserProfile?.displayName || user.email)[0].toUpperCase();
-      
-      // Role-based badge color
-      const badge = userMenu.querySelector('.role-badge');
-      if (badge) {
-        badge.className = 'role-badge role-' + currentUserRole;
-      }
-    }
-    
-    // Show admin link for admins
-    if (adminLink) {
-      adminLink.style.display = (currentUserRole === ROLES.ADMIN) ? 'inline-flex' : 'none';
-    }
-    
-    // Show edit buttons for assistants/admins
-    document.querySelectorAll('.edit-doctor-btn').forEach(btn => {
-      btn.style.display = canEditDoctors() ? 'inline-flex' : 'none';
-    });
 
-    // Close auth modal if open
+      if (userName) userName.textContent = currentUserProfile?.display_name || user.email;
+      if (userRole) userRole.textContent = ROLE_LABELS[currentUserRole] || 'Patient';
+      if (userAvatar) userAvatar.textContent = (currentUserProfile?.display_name || user.email)[0].toUpperCase();
+
+      const badge = userMenu.querySelector('.role-badge');
+      if (badge) badge.className = 'role-badge role-' + currentUserRole;
+    }
+
+    if (adminLink) adminLink.style.display = (currentUserRole === ROLES.ADMIN) ? 'inline-flex' : 'none';
     closeAuthModal();
   }
 
@@ -342,7 +383,7 @@
     const authBtn = document.getElementById('authBtn');
     const userMenu = document.getElementById('userMenu');
     const adminLink = document.getElementById('adminLink');
-    
+
     if (authBtn) authBtn.style.display = 'inline-flex';
     if (userMenu) userMenu.style.display = 'none';
     if (adminLink) adminLink.style.display = 'none';
@@ -354,15 +395,14 @@
   function openAuthModal(mode = 'login') {
     const modal = document.getElementById('authModal');
     if (!modal) return;
-    
+
     if (!window.firebaseReady) {
-      alert('Authentication is not configured yet. Please set up Firebase first.');
+      alert('Authentication is not configured yet. Please set up Supabase first.');
       return;
     }
-    
+
     modal.classList.add('active');
     document.body.style.overflow = 'hidden';
-    
     switchAuthMode(mode);
   }
 
@@ -382,112 +422,71 @@
     const resetForm = document.getElementById('resetForm');
     const loginTab = document.getElementById('loginTab');
     const registerTab = document.getElementById('registerTab');
-    
+
     if (!loginForm) return;
-    
     loginForm.style.display = mode === 'login' ? 'block' : 'none';
     registerForm.style.display = mode === 'register' ? 'block' : 'none';
     resetForm.style.display = mode === 'reset' ? 'block' : 'none';
-    
     if (loginTab) loginTab.classList.toggle('active', mode === 'login');
     if (registerTab) registerTab.classList.toggle('active', mode === 'register');
-    
     clearAuthErrors();
   }
 
   function showAuthError(formId, message) {
-    const errorEl = document.querySelector(`#${formId} .auth-error`);
-    if (errorEl) {
-      errorEl.textContent = message;
-      errorEl.style.display = 'block';
-    }
+    const el = document.querySelector(`#${formId} .auth-error`);
+    if (el) { el.textContent = message; el.style.display = 'block'; }
   }
 
   function clearAuthErrors() {
-    document.querySelectorAll('.auth-error').forEach(el => {
-      el.textContent = '';
-      el.style.display = 'none';
-    });
+    document.querySelectorAll('.auth-error').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
   }
 
   function showAuthSuccess(formId, message) {
-    const successEl = document.querySelector(`#${formId} .auth-success`);
-    if (successEl) {
-      successEl.textContent = message;
-      successEl.style.display = 'block';
-    }
+    const el = document.querySelector(`#${formId} .auth-success`);
+    if (el) { el.textContent = message; el.style.display = 'block'; }
   }
 
   // ==========================================
   // EVENT HANDLERS SETUP
   // ==========================================
   function setupAuthEvents() {
-    // Auth button
     const authBtn = document.getElementById('authBtn');
-    if (authBtn) {
-      authBtn.addEventListener('click', () => openAuthModal('login'));
-    }
-    
-    // Close auth modal
+    if (authBtn) authBtn.addEventListener('click', () => openAuthModal('login'));
+
     const authModalClose = document.getElementById('authModalClose');
-    if (authModalClose) {
-      authModalClose.addEventListener('click', closeAuthModal);
-    }
-    
+    if (authModalClose) authModalClose.addEventListener('click', closeAuthModal);
+
     const authModal = document.getElementById('authModal');
-    if (authModal) {
-      authModal.addEventListener('click', (e) => {
-        if (e.target === authModal) closeAuthModal();
-      });
-    }
-    
-    // Tab switching
+    if (authModal) authModal.addEventListener('click', (e) => { if (e.target === authModal) closeAuthModal(); });
+
     const loginTab = document.getElementById('loginTab');
     const registerTab = document.getElementById('registerTab');
     if (loginTab) loginTab.addEventListener('click', () => switchAuthMode('login'));
     if (registerTab) registerTab.addEventListener('click', () => switchAuthMode('register'));
-    
-    // Forgot password link
-    const forgotLink = document.getElementById('forgotPasswordLink');
-    if (forgotLink) {
-      forgotLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchAuthMode('reset');
-      });
-    }
-    
-    // Back to login from reset
-    const backToLogin = document.getElementById('backToLoginLink');
-    if (backToLogin) {
-      backToLogin.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchAuthMode('login');
-      });
-    }
 
-    // Login form submit
+    const forgotLink = document.getElementById('forgotPasswordLink');
+    if (forgotLink) forgotLink.addEventListener('click', (e) => { e.preventDefault(); switchAuthMode('reset'); });
+
+    const backToLogin = document.getElementById('backToLoginLink');
+    if (backToLogin) backToLogin.addEventListener('click', (e) => { e.preventDefault(); switchAuthMode('login'); });
+
+    // Login form
     const loginFormEl = document.getElementById('loginFormEl');
     if (loginFormEl) {
       loginFormEl.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value.trim();
         const password = document.getElementById('loginPassword').value;
-        const submitBtn = loginFormEl.querySelector('button[type="submit"]');
-        
+        const btn = loginFormEl.querySelector('button[type="submit"]');
         try {
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Signing in...';
+          btn.disabled = true; btn.textContent = 'Signing in...';
           await login(email, password);
-        } catch (err) {
-          showAuthError('loginForm', err.message);
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Sign In';
-        }
+        } catch (err) { showAuthError('loginForm', err.message); }
+        finally { btn.disabled = false; btn.textContent = 'Sign In'; }
       });
     }
 
-    // Register form submit
+    // Register form
     const registerFormEl = document.getElementById('registerFormEl');
     if (registerFormEl) {
       registerFormEl.addEventListener('submit', async (e) => {
@@ -495,135 +494,70 @@
         const name = document.getElementById('registerName').value.trim();
         const email = document.getElementById('registerEmail').value.trim();
         const password = document.getElementById('registerPassword').value;
-        const confirmPassword = document.getElementById('registerConfirmPassword').value;
-        const submitBtn = registerFormEl.querySelector('button[type="submit"]');
-        
-        if (password !== confirmPassword) {
-          showAuthError('registerForm', 'Passwords do not match');
-          return;
-        }
-        if (password.length < 6) {
-          showAuthError('registerForm', 'Password must be at least 6 characters');
-          return;
-        }
-        
+        const confirm = document.getElementById('registerConfirmPassword').value;
+        const btn = registerFormEl.querySelector('button[type="submit"]');
+        if (password !== confirm) { showAuthError('registerForm', 'Passwords do not match'); return; }
+        if (password.length < 6) { showAuthError('registerForm', 'Password must be at least 6 characters'); return; }
         try {
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Creating account...';
+          btn.disabled = true; btn.textContent = 'Creating account...';
           await register(email, password, name);
-        } catch (err) {
-          showAuthError('registerForm', err.message);
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Create Account';
-        }
+          showAuthSuccess('registerForm', 'Account created successfully!');
+        } catch (err) { showAuthError('registerForm', err.message); }
+        finally { btn.disabled = false; btn.textContent = 'Create Account'; }
       });
     }
 
-    // Reset password form
+    // Reset form
     const resetFormEl = document.getElementById('resetFormEl');
     if (resetFormEl) {
       resetFormEl.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('resetEmail').value.trim();
-        const submitBtn = resetFormEl.querySelector('button[type="submit"]');
-        
+        const btn = resetFormEl.querySelector('button[type="submit"]');
         try {
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Sending...';
+          btn.disabled = true; btn.textContent = 'Sending...';
           await resetPassword(email);
           showAuthSuccess('resetForm', 'Password reset email sent! Check your inbox.');
-        } catch (err) {
-          showAuthError('resetForm', err.message);
-        } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Send Reset Link';
-        }
+        } catch (err) { showAuthError('resetForm', err.message); }
+        finally { btn.disabled = false; btn.textContent = 'Send Reset Link'; }
       });
     }
 
-    // Google sign in buttons
+    // Google sign in
     document.querySelectorAll('.google-signin-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        try {
-          btn.disabled = true;
-          await googleSignIn();
-        } catch (err) {
-          showAuthError('loginForm', err.message);
-        } finally {
-          btn.disabled = false;
-        }
+        try { btn.disabled = true; await googleSignIn(); }
+        catch (err) { showAuthError('loginForm', err.message); }
+        finally { btn.disabled = false; }
       });
     });
 
-    // Logout button
+    // Logout
     const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        await logout();
-      });
-    }
+    if (logoutBtn) logoutBtn.addEventListener('click', async () => { await logout(); });
 
-    // User menu dropdown toggle
+    // User menu dropdown
     const userMenuBtn = document.getElementById('userMenuBtn');
     const userDropdown = document.getElementById('userDropdown');
     if (userMenuBtn && userDropdown) {
-      userMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        userDropdown.classList.toggle('active');
-      });
-      document.addEventListener('click', () => {
-        userDropdown.classList.remove('active');
-      });
+      userMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); userDropdown.classList.toggle('active'); });
+      document.addEventListener('click', () => { userDropdown.classList.remove('active'); });
     }
   }
 
   // ==========================================
-  // ERROR FORMATTING
-  // ==========================================
-  function formatAuthError(error) {
-    const messages = {
-      'auth/user-not-found': 'No account found with this email',
-      'auth/wrong-password': 'Incorrect password',
-      'auth/email-already-in-use': 'An account with this email already exists',
-      'auth/weak-password': 'Password must be at least 6 characters',
-      'auth/invalid-email': 'Please enter a valid email address',
-      'auth/too-many-requests': 'Too many attempts. Please try again later',
-      'auth/popup-closed-by-user': 'Sign-in popup was closed',
-      'auth/invalid-credential': 'Invalid email or password',
-    };
-    
-    return new Error(messages[error.code] || error.message || 'An error occurred');
-  }
-
-  // ==========================================
-  // PUBLIC API
+  // PUBLIC API (same interface as before)
   // ==========================================
   window.AuthManager = {
     init: initAuth,
     setupEvents: setupAuthEvents,
-    register,
-    login,
-    googleSignIn,
-    logout,
-    resetPassword,
-    isLoggedIn,
-    isAdmin,
-    isClinicAssistant,
-    isPatient,
-    canEditDoctors,
-    canManageUsers,
-    canDeleteDoctors,
-    canAddDoctors,
-    openAuthModal,
-    closeAuthModal,
-    rateDoctorFirestore,
-    getDoctorRatingFirestore,
-    addDoctorFirestore,
-    updateDoctorFirestore,
-    deleteDoctorFirestore,
-    getAllUsers,
-    updateUserRole,
+    register, login, googleSignIn, logout, resetPassword,
+    isLoggedIn, isAdmin, isClinicAssistant, isPatient,
+    canEditDoctors, canManageUsers, canDeleteDoctors, canAddDoctors,
+    openAuthModal, closeAuthModal,
+    rateDoctorFirestore, getDoctorRatingFirestore,
+    addDoctorFirestore, updateDoctorFirestore, deleteDoctorFirestore,
+    getAllUsers, updateUserRole,
     getCurrentUser: () => currentUser,
     getCurrentRole: () => currentUserRole,
     getCurrentProfile: () => currentUserProfile,
