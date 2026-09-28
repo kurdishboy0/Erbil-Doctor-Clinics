@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel | Erbil Doctor Finder</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="admin-container" id="adminApp">
+    <!-- Access Denied Screen -->
+    <div id="accessDenied" style="text-align:center; padding:100px 20px;">
+      <div style="font-size:64px;">🔒</div>
+      <h2 style="margin:16px 0 8px;">Access Denied</h2>
+      <p style="color:var(--text-secondary);">You need to be an Admin to access this page.</p>
+      <br>
+      <a href="index.html" class="btn btn-primary">← Back to Home</a>
+    </div>
+
+    <!-- Admin Content (hidden until verified) -->
+    <div id="adminContent" style="display:none;">
+      <div class="admin-header">
+        <div>
+          <h1>⚙️ Admin Panel</h1>
+          <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">
+            Manage doctors, users, and site settings
+          </p>
+        </div>
+        <a href="index.html" class="btn btn-outline">← Back to Site</a>
+      </div>
+
+      <!-- Tabs -->
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="stats">📊 Overview</button>
+        <button class="admin-tab" data-tab="users">👥 Users</button>
+        <button class="admin-tab" data-tab="doctors">🩺 Doctors</button>
+      </div>
+
+      <!-- Stats Panel -->
+      <div class="admin-panel active" id="panel-stats">
+        <div class="admin-stat-grid">
+          <div class="admin-stat-card">
+            <div class="stat-icon">🩺</div>
+            <div class="stat-val" id="statDoctors">0</div>
+            <div class="stat-lbl">Total Doctors</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon">📍</div>
+            <div class="stat-val" id="statAreas">0</div>
+            <div class="stat-lbl">Areas</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon">🏥</div>
+            <div class="stat-val" id="statSpecialties">0</div>
+            <div class="stat-lbl">Specialties</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-val" id="statUsers">0</div>
+            <div class="stat-lbl">Registered Users</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon">⭐</div>
+            <div class="stat-val" id="statRatings">0</div>
+            <div class="stat-lbl">Total Ratings</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="stat-icon">👩‍⚕️</div>
+            <div class="stat-val" id="statAssistants">0</div>
+            <div class="stat-lbl">Clinic Assistants</div>
+          </div>
+        </div>
+        
+        <h3 style="margin-bottom: 16px;">Top Specialties by Doctor Count</h3>
+        <div id="specialtyBreakdown"></div>
+      </div>
+
+      <!-- Users Panel -->
+      <div class="admin-panel" id="panel-users">
+        <div style="margin-bottom: 16px; display:flex; justify-content: space-between; align-items:center;">
+          <h3>Registered Users</h3>
+          <button class="btn btn-outline" id="refreshUsersBtn">🔄 Refresh</button>
+        </div>
+        <div id="usersLoading" style="text-align:center; padding:40px; color:var(--text-light);">Loading users...</div>
+        <div id="usersTableContainer" style="display:none; overflow-x:auto;">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Last Login</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Doctors Panel -->
+      <div class="admin-panel" id="panel-doctors">
+        <div style="margin-bottom: 16px; display:flex; justify-content: space-between; align-items:center; flex-wrap: wrap; gap: 12px;">
+          <h3>Doctor Database</h3>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="adminDoctorSearch" placeholder="Search doctors..." 
+                   style="padding:8px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:0.9rem;">
+            <button class="btn btn-primary" id="adminAddDoctorBtn">+ Add Doctor</button>
+          </div>
+        </div>
+        <div id="adminDoctorsList" style="overflow-x:auto;">
+          <table class="user-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Specialty</th>
+                <th>Area</th>
+                <th>Clinic</th>
+                <th>Phone</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminDoctorsBody"></tbody>
+          </table>
+        </div>
+        <div style="text-align:center; padding: 16px;">
+          <button class="btn btn-outline" id="loadMoreDoctorsBtn">Load More</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="doctors.js"></script>
+  <script src="auth.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
