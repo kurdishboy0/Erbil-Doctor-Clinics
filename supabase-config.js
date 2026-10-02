@@ -17,8 +17,8 @@
    
    ============================================= */
 
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';       // e.g., https://xyzcompany.supabase.co
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // The "anon" "public" key
+const SUPABASE_URL = 'https://hwjsgsfihbmczysptcgm.supabase.co';       // e.g., https://xyzcompany.supabase.co
+const SUPABASE_ANON_KEY = 'sb_publishable_iSlKHUQ6rvJ8ApTrp5bSJg_gneMV7fV'; // The "anon" "public" key
 
 // ⚠️ SET YOUR ADMIN EMAIL HERE
 // The first user who registers with this email will automatically become Admin
