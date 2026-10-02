@@ -1,6 +1,5 @@
 /* =============================================
-   AUTH MODULE - Supabase Authentication & Authorization
-   With Super Admin + Admin hierarchy
+   AUTH MODULE - Firebase Authentication & Authorization
    ============================================= */
 
 (function() {
@@ -15,16 +14,16 @@
   // AUTH STATE LISTENER
   // ==========================================
   function initAuth() {
-    if (!window.firebaseReady || !supabaseClient) {
+    if (!window.firebaseReady || !auth) {
       updateUIForGuest();
       return;
     }
 
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        currentUser = session.user;
-        await loadUserProfile(session.user);
-        updateUIForLoggedIn(session.user);
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        currentUser = user;
+        await loadUserProfile(user);
+        updateUIForLoggedIn(user);
       } else {
         currentUser = null;
         currentUserRole = null;
@@ -33,17 +32,6 @@
       }
       authStateCallbacks.forEach(cb => cb(currentUser, currentUserRole));
     });
-
-    // Check existing session
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        currentUser = session.user;
-        loadUserProfile(session.user).then(() => {
-          updateUIForLoggedIn(session.user);
-          authStateCallbacks.forEach(cb => cb(currentUser, currentUserRole));
-        });
-      }
-    });
   }
 
   // ==========================================
@@ -51,42 +39,36 @@
   // ==========================================
   async function loadUserProfile(user) {
     try {
-      const { data, error } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      const docRef = db.collection('profiles').doc(user.uid);
+      const docSnap = await docRef.get();
 
-      if (data) {
-        currentUserProfile = data;
-        currentUserRole = data.role;
+      if (docSnap.exists) {
+        currentUserProfile = docSnap.data();
+        currentUserRole = currentUserProfile.role;
       } else {
         // First time login — auto-assign role based on email
         const email = (user.email || '').toLowerCase();
         let role = ROLES.PATIENT;
 
-        if (email === SUPER_ADMIN_EMAIL.toLowerCase()) {
+        if (email === window.SUPER_ADMIN_EMAIL.toLowerCase()) {
           role = ROLES.SUPER_ADMIN;
-        } else if (ADMIN_EMAILS.some(e => e.toLowerCase() === email)) {
+        } else if (window.ADMIN_EMAILS.some(e => e.toLowerCase() === email)) {
           role = ROLES.ADMIN;
         }
 
         currentUserProfile = {
-          id: user.id,
           email: user.email,
-          display_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0],
+          display_name: user.displayName || user.email.split('@')[0],
           role: role,
+          created_at: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        await supabaseClient.from('profiles').upsert(currentUserProfile);
+        await docRef.set(currentUserProfile);
         currentUserRole = role;
       }
 
       // Update last login
-      await supabaseClient
-        .from('profiles')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', user.id);
+      await docRef.update({ last_login: firebase.firestore.FieldValue.serverTimestamp() });
 
     } catch (e) {
       console.error('Error loading user profile:', e);
@@ -98,73 +80,45 @@
   // REGISTER
   // ==========================================
   async function register(email, password, displayName) {
-    if (!supabaseClient) throw new Error('Supabase not configured');
+    if (!auth) throw new Error('Firebase not configured');
 
-    const { data, error } = await supabaseClient.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: displayName }
-      }
-    });
-
-    if (error) throw new Error(error.message);
-
-    if (data.user && !data.session) {
-      throw new Error('Check your email for a confirmation link!');
-    }
-
-    return data.user;
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    await userCredential.user.updateProfile({ displayName });
+    return userCredential.user;
   }
 
   // ==========================================
   // LOGIN
   // ==========================================
   async function login(email, password) {
-    if (!supabaseClient) throw new Error('Supabase not configured');
-
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) throw new Error(error.message);
-    return data.user;
+    if (!auth) throw new Error('Firebase not configured');
+    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+    return userCredential.user;
   }
 
   // ==========================================
   // GOOGLE SIGN IN
   // ==========================================
   async function googleSignIn() {
-    if (!supabaseClient) throw new Error('Supabase not configured');
-
-    const { data, error } = await supabaseClient.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
-    });
-
-    if (error) throw new Error(error.message);
+    if (!auth) throw new Error('Firebase not configured');
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
   }
 
   // ==========================================
   // LOGOUT
   // ==========================================
   async function logout() {
-    if (!supabaseClient) return;
-    await supabaseClient.auth.signOut();
+    if (!auth) return;
+    await auth.signOut();
   }
 
   // ==========================================
   // PASSWORD RESET
   // ==========================================
   async function resetPassword(email) {
-    if (!supabaseClient) throw new Error('Supabase not configured');
-
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin
-    });
-
-    if (error) throw new Error(error.message);
+    if (!auth) throw new Error('Firebase not configured');
+    await auth.sendPasswordResetEmail(email);
   }
 
   // ==========================================
@@ -190,7 +144,7 @@
     return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
   }
   function canManageAdmins() {
-    return currentUserRole === ROLES.SUPER_ADMIN; // Only super admin can promote/demote admins
+    return currentUserRole === ROLES.SUPER_ADMIN; 
   }
   function canAccessAdminPanel() {
     return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
@@ -202,49 +156,46 @@
     return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
   }
 
-  // Check if user can change a target user's role
   function canChangeRole(targetRole, newRole) {
-    if (currentUserRole === ROLES.SUPER_ADMIN) return true; // Super admin can do anything
+    if (currentUserRole === ROLES.SUPER_ADMIN) return true;
     if (currentUserRole === ROLES.ADMIN) {
-      // Admin cannot promote to admin/super_admin or demote other admins/super_admins
       if (targetRole === ROLES.SUPER_ADMIN || targetRole === ROLES.ADMIN) return false;
       if (newRole === ROLES.SUPER_ADMIN || newRole === ROLES.ADMIN) return false;
-      return true; // Can change patient <-> clinic_assistant
+      return true;
     }
     return false;
   }
 
   // ==========================================
-  // SUPABASE: RATINGS
+  // FIREBASE: RATINGS
   // ==========================================
   async function rateDoctorFirestore(doctorId, value) {
-    if (!supabaseClient || !currentUser) return null;
+    if (!db || !currentUser) return null;
 
     try {
-      const { error: ratingError } = await supabaseClient
-        .from('ratings')
-        .upsert({
-          user_id: currentUser.id,
-          doctor_id: doctorId,
-          value: value,
-        }, { onConflict: 'user_id,doctor_id' });
+      // 1. Save user rating
+      const ratingRef = db.collection('ratings').doc(`${currentUser.uid}_${doctorId}`);
+      await ratingRef.set({
+        user_id: currentUser.uid,
+        doctor_id: doctorId.toString(),
+        value: value,
+        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+      });
 
-      if (ratingError) throw ratingError;
+      // 2. Recalculate aggregate using a transaction to ensure accuracy
+      const docRatingRef = db.collection('doctor_ratings').doc(doctorId.toString());
+      
+      const allRatingsSnapshot = await db.collection('ratings')
+        .where('doctor_id', '==', doctorId.toString())
+        .get();
+        
+      let total = 0;
+      let count = allRatingsSnapshot.size;
+      allRatingsSnapshot.forEach(doc => {
+        total += doc.data().value;
+      });
 
-      // Recalculate aggregate
-      const { data: allRatings, error: aggError } = await supabaseClient
-        .from('ratings')
-        .select('value')
-        .eq('doctor_id', doctorId);
-
-      if (aggError) throw aggError;
-
-      const total = allRatings.reduce((sum, r) => sum + r.value, 0);
-      const count = allRatings.length;
-
-      await supabaseClient
-        .from('doctor_ratings')
-        .upsert({ doctor_id: doctorId, total, count }, { onConflict: 'doctor_id' });
+      await docRatingRef.set({ total, count });
 
       return { total, count, userRating: value };
     } catch (e) {
@@ -254,31 +205,26 @@
   }
 
   async function getDoctorRatingFirestore(doctorId) {
-    if (!supabaseClient) return null;
+    if (!db) return null;
 
     try {
       let result = { total: 0, count: 0, userRating: 0 };
 
-      const { data: aggData } = await supabaseClient
-        .from('doctor_ratings')
-        .select('total, count')
-        .eq('doctor_id', doctorId)
-        .single();
-
-      if (aggData) {
-        result.total = aggData.total;
-        result.count = aggData.count;
+      // Get aggregate
+      const docRatingRef = db.collection('doctor_ratings').doc(doctorId.toString());
+      const aggSnap = await docRatingRef.get();
+      if (aggSnap.exists) {
+        result.total = aggSnap.data().total;
+        result.count = aggSnap.data().count;
       }
 
+      // Get current user rating
       if (currentUser) {
-        const { data: userRating } = await supabaseClient
-          .from('ratings')
-          .select('value')
-          .eq('user_id', currentUser.id)
-          .eq('doctor_id', doctorId)
-          .single();
-
-        if (userRating) result.userRating = userRating.value;
+        const ratingRef = db.collection('ratings').doc(`${currentUser.uid}_${doctorId}`);
+        const ratingSnap = await ratingRef.get();
+        if (ratingSnap.exists) {
+          result.userRating = ratingSnap.data().value;
+        }
       }
 
       return result;
@@ -289,101 +235,88 @@
   }
 
   // ==========================================
-  // SUPABASE: DOCTOR MANAGEMENT
+  // FIREBASE: DOCTOR MANAGEMENT
   // ==========================================
   async function addDoctorFirestore(doctorData) {
     if (!canAddDoctors()) throw new Error('Unauthorized');
 
-    const { data, error } = await supabaseClient
-      .from('doctors')
-      .insert({
-        name: doctorData.name,
-        specialty: doctorData.specialty,
-        area: doctorData.area,
-        clinic: doctorData.clinic || '',
-        phone: doctorData.phone || '',
-        added_by: currentUser.id,
-      })
-      .select()
-      .single();
+    const docRef = await db.collection('doctors').add({
+      name: doctorData.name,
+      specialty: doctorData.specialty,
+      area: doctorData.area,
+      clinic: doctorData.clinic || '',
+      phone: doctorData.phone || '',
+      added_by: currentUser.uid,
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
 
-    if (error) throw new Error(error.message);
-    return data.id;
+    return docRef.id;
   }
 
   async function updateDoctorFirestore(doctorId, updates) {
     if (!canEditDoctors()) throw new Error('Unauthorized');
 
-    const { error } = await supabaseClient
-      .from('doctors')
-      .upsert({
-        id: doctorId,
-        name: updates.name,
-        specialty: updates.specialty,
-        area: updates.area,
-        clinic: updates.clinic || '',
-        phone: updates.phone || '',
-        updated_by: currentUser.id,
-      });
-
-    if (error) throw new Error(error.message);
+    await db.collection('doctors').doc(doctorId.toString()).set({
+      name: updates.name,
+      specialty: updates.specialty,
+      area: updates.area,
+      clinic: updates.clinic || '',
+      phone: updates.phone || '',
+      updated_by: currentUser.uid,
+      updated_at: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
   }
 
   async function deleteDoctorFirestore(doctorId) {
     if (!canDeleteDoctors()) throw new Error('Unauthorized');
 
-    const { error } = await supabaseClient
-      .from('doctors')
-      .update({ deleted: true, deleted_by: currentUser.id })
-      .eq('id', doctorId);
-
-    if (error) throw new Error(error.message);
+    await db.collection('doctors').doc(doctorId.toString()).set({
+      deleted: true,
+      deleted_by: currentUser.uid,
+      deleted_at: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
   }
 
   // ==========================================
-  // SUPABASE: USER MANAGEMENT
+  // FIREBASE: USER MANAGEMENT
   // ==========================================
   async function getAllUsers() {
     if (!canManageUsers()) throw new Error('Unauthorized');
 
-    const { data, error } = await supabaseClient
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const snapshot = await db.collection('profiles')
+      .orderBy('created_at', 'desc')
+      .get();
 
-    if (error) throw new Error(error.message);
-
-    return data.map(u => ({
-      id: u.id,
-      email: u.email,
-      displayName: u.display_name,
-      role: u.role,
-      lastLogin: u.last_login ? { toDate: () => new Date(u.last_login) } : null,
-      createdAt: u.created_at,
-    }));
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        email: data.email,
+        displayName: data.display_name,
+        role: data.role,
+        lastLogin: data.last_login ? data.last_login.toDate() : null,
+      };
+    });
   }
 
   async function updateUserRole(userId, newRole) {
     if (!canManageUsers()) throw new Error('Unauthorized');
     if (!Object.values(ROLES).includes(newRole)) throw new Error('Invalid role');
 
-    // Get target user's current role
-    const { data: target } = await supabaseClient
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
-    if (target && !canChangeRole(target.role, newRole)) {
-      throw new Error('You do not have permission to change this user\'s role');
+    const docRef = db.collection('profiles').doc(userId);
+    const targetSnap = await docRef.get();
+    
+    if (targetSnap.exists) {
+      const targetData = targetSnap.data();
+      if (!canChangeRole(targetData.role, newRole)) {
+        throw new Error('You do not have permission to change this user\'s role');
+      }
     }
 
-    const { error } = await supabaseClient
-      .from('profiles')
-      .update({ role: newRole, role_updated_by: currentUser.id })
-      .eq('id', userId);
-
-    if (error) throw new Error(error.message);
+    await docRef.update({
+      role: newRole,
+      role_updated_by: currentUser.uid
+    });
   }
 
   // ==========================================
@@ -431,7 +364,7 @@
     if (!modal) return;
 
     if (!window.firebaseReady) {
-      alert('Authentication is not configured yet. Please set up Supabase first.');
+      alert('Authentication is not configured yet. Please set up Firebase first.');
       return;
     }
 
