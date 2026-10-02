@@ -22,7 +22,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_iSlKHUQ6rvJ8ApTrp5bSJg_gneMV7fV'; // T
 
 // ⚠️ SET YOUR ADMIN EMAIL HERE
 // The first user who registers with this email will automatically become Admin
-const ADMIN_EMAIL = 'admin@example.com';
+const ADMIN_EMAIL = 'ahmadhawlery0011@gmail.com';
 
 // Role Constants
 const ROLES = {
