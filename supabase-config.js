@@ -1,40 +1,35 @@
 /* =============================================
    SUPABASE CONFIGURATION
-   =============================================
-   
-   SETUP INSTRUCTIONS:
-   1. Go to https://supabase.com/ and sign up (free)
-   2. Click "New Project"
-   3. Enter a name (e.g., "erbil-doctor-finder")
-   4. Set a strong database password (save it!)
-   5. Choose a region close to you → Click "Create new project"
-   6. Once created, go to Settings → API
-   7. Copy your "Project URL" and "anon public" key below
-   
-   THEN RUN THE SQL (see setup guide):
-   - Go to SQL Editor in Supabase dashboard
-   - Run the provided SQL to create tables & policies
-   
    ============================================= */
 
-const SUPABASE_URL = 'https://hwjsgsfihbmczysptcgm.supabase.co';       // e.g., https://xyzcompany.supabase.co
-const SUPABASE_ANON_KEY = 'sb_publishable_iSlKHUQ6rvJ8ApTrp5bSJg_gneMV7fV'; // The "anon" "public" key
+const SUPABASE_URL = 'https://hwjsgsfihbmczysptcgm.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_iSlKHUQ6rvJ8ApTrp5bSJg_gneMV7fV';
 
-// ⚠️ SET YOUR ADMIN EMAIL HERE
-// The first user who registers with this email will automatically become Admin
-const ADMIN_EMAIL = 'ahmadhawlery0011@gmail.com';
+// ⚠️ ADMIN ACCOUNTS
+// These emails auto-assign roles on first registration
+const SUPER_ADMIN_EMAIL = 'ahmadhawlery0011@gmail.com';  // Ahmed Haji - Full control
+const ADMIN_EMAILS = ['chroazad27@gmail.com'];             // Chro Azad - Admin
 
-// Role Constants
+// Role Constants (hierarchical: super_admin > admin > clinic_assistant > patient)
 const ROLES = {
   PATIENT: 'patient',
   CLINIC_ASSISTANT: 'clinic_assistant',
-  ADMIN: 'admin'
+  ADMIN: 'admin',
+  SUPER_ADMIN: 'super_admin'
 };
 
 const ROLE_LABELS = {
   [ROLES.PATIENT]: 'Patient',
   [ROLES.CLINIC_ASSISTANT]: 'Clinic Assistant',
-  [ROLES.ADMIN]: 'Admin'
+  [ROLES.ADMIN]: 'Admin',
+  [ROLES.SUPER_ADMIN]: 'Super Admin'
+};
+
+const ROLE_HIERARCHY = {
+  [ROLES.PATIENT]: 0,
+  [ROLES.CLINIC_ASSISTANT]: 1,
+  [ROLES.ADMIN]: 2,
+  [ROLES.SUPER_ADMIN]: 3
 };
 
 // Initialize Supabase
@@ -44,10 +39,10 @@ let firebaseReady = false; // keeping this name for compatibility with app.js
 try {
   if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    firebaseReady = true; // means "backend is ready"
+    firebaseReady = true;
     console.log('✅ Supabase initialized');
   } else {
-    console.warn('⚠️ Supabase not configured. Auth features disabled. Update supabase-config.js');
+    console.warn('⚠️ Supabase not configured. Auth features disabled.');
   }
 } catch (e) {
   console.error('❌ Supabase init error:', e);
@@ -56,5 +51,8 @@ try {
 window.supabaseClient = supabaseClient;
 window.ROLES = ROLES;
 window.ROLE_LABELS = ROLE_LABELS;
-window.ADMIN_EMAIL = ADMIN_EMAIL;
+window.ROLE_HIERARCHY = ROLE_HIERARCHY;
+window.SUPER_ADMIN_EMAIL = SUPER_ADMIN_EMAIL;
+window.ADMIN_EMAILS = ADMIN_EMAILS;
+window.ADMIN_EMAIL = SUPER_ADMIN_EMAIL; // backward compat
 window.firebaseReady = firebaseReady;

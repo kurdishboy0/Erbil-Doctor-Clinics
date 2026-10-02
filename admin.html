@@ -25,19 +25,23 @@
     <div id="adminContent" style="display:none;">
       <div class="admin-header">
         <div>
-          <h1>⚙️ Admin Panel</h1>
-          <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">
+          <h1 id="adminTitle">⚙️ Admin Panel</h1>
+          <p id="adminSubtitle" style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">
             Manage doctors, users, and site settings
           </p>
         </div>
-        <a href="index.html" class="btn btn-outline">← Back to Site</a>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="role-badge" id="adminRoleBadge" style="font-size:0.75rem; padding:4px 12px;">Admin</span>
+          <a href="index.html" class="btn btn-outline">← Back to Site</a>
+        </div>
       </div>
 
       <!-- Tabs -->
-      <div class="admin-tabs">
+      <div class="admin-tabs" id="adminTabsContainer">
         <button class="admin-tab active" data-tab="stats">📊 Overview</button>
         <button class="admin-tab" data-tab="users">👥 Users</button>
         <button class="admin-tab" data-tab="doctors">🩺 Doctors</button>
+        <button class="admin-tab" data-tab="settings" id="settingsTab" style="display:none;">⚙️ Settings</button>
       </div>
 
       <!-- Stats Panel -->
@@ -77,13 +81,26 @@
         
         <h3 style="margin-bottom: 16px;">Top Specialties by Doctor Count</h3>
         <div id="specialtyBreakdown"></div>
+
+        <!-- Super Admin Only: Quick Actions -->
+        <div id="superAdminQuickActions" style="display:none; margin-top:24px;">
+          <h3 style="margin-bottom: 16px;">🔑 Super Admin Actions</h3>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="btn btn-primary" id="exportDataBtn">📥 Export All Data (CSV)</button>
+            <button class="btn btn-outline" id="exportUsersBtn">📥 Export Users</button>
+          </div>
+        </div>
       </div>
 
       <!-- Users Panel -->
       <div class="admin-panel" id="panel-users">
-        <div style="margin-bottom: 16px; display:flex; justify-content: space-between; align-items:center;">
+        <div style="margin-bottom: 16px; display:flex; justify-content: space-between; align-items:center; flex-wrap:wrap; gap:12px;">
           <h3>Registered Users</h3>
-          <button class="btn btn-outline" id="refreshUsersBtn">🔄 Refresh</button>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="userSearchInput" placeholder="Search users..." 
+                   style="padding:8px 14px; border:1px solid var(--border); border-radius:var(--radius-sm); font-family:inherit; font-size:0.9rem;">
+            <button class="btn btn-outline" id="refreshUsersBtn">🔄 Refresh</button>
+          </div>
         </div>
         <div id="usersLoading" style="text-align:center; padding:40px; color:var(--text-light);">Loading users...</div>
         <div id="usersTableContainer" style="display:none; overflow-x:auto;">
@@ -99,6 +116,9 @@
             <tbody id="usersTableBody"></tbody>
           </table>
         </div>
+        <p id="userPermissionNote" style="margin-top:12px; font-size:0.8rem; color:var(--text-light); display:none;">
+          ℹ️ As an Admin, you can change Patient ↔ Clinic Assistant roles. Only Super Admins can promote/demote Admin roles.
+        </p>
       </div>
 
       <!-- Doctors Panel -->
@@ -129,6 +149,30 @@
         </div>
         <div style="text-align:center; padding: 16px;">
           <button class="btn btn-outline" id="loadMoreDoctorsBtn">Load More</button>
+        </div>
+      </div>
+
+      <!-- Settings Panel (Super Admin Only) -->
+      <div class="admin-panel" id="panel-settings">
+        <h3 style="margin-bottom: 16px;">🔑 Site Settings (Super Admin Only)</h3>
+        <div style="display:grid; gap:20px; max-width:600px;">
+          <div class="admin-stat-card" style="text-align:left;">
+            <h4 style="margin-bottom:8px;">📧 Admin Accounts</h4>
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:12px;">Current admin accounts configured:</p>
+            <div id="adminAccountsList" style="font-size:0.9rem;"></div>
+          </div>
+          <div class="admin-stat-card" style="text-align:left;">
+            <h4 style="margin-bottom:8px;">🗄️ Database Info</h4>
+            <p style="font-size:0.85rem; color:var(--text-secondary);">Supabase Project URL:</p>
+            <code id="settingsSupabaseUrl" style="font-size:0.8rem; color:var(--primary);"></code>
+          </div>
+          <div class="admin-stat-card" style="text-align:left;">
+            <h4 style="margin-bottom:8px;">📊 Data Management</h4>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <button class="btn btn-primary" id="settingsExportDoctors">📥 Export Doctors CSV</button>
+              <button class="btn btn-outline" id="settingsExportRatings">📥 Export Ratings CSV</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

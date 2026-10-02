@@ -1,5 +1,6 @@
 /* =============================================
    AUTH MODULE - Supabase Authentication & Authorization
+   With Super Admin + Admin hierarchy
    ============================================= */
 
 (function() {
@@ -60,10 +61,15 @@
         currentUserProfile = data;
         currentUserRole = data.role;
       } else {
-        // First time login — create profile
-        const role = (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase())
-          ? ROLES.ADMIN
-          : ROLES.PATIENT;
+        // First time login — auto-assign role based on email
+        const email = (user.email || '').toLowerCase();
+        let role = ROLES.PATIENT;
+
+        if (email === SUPER_ADMIN_EMAIL.toLowerCase()) {
+          role = ROLES.SUPER_ADMIN;
+        } else if (ADMIN_EMAILS.some(e => e.toLowerCase() === email)) {
+          role = ROLES.ADMIN;
+        }
 
         currentUserProfile = {
           id: user.id,
@@ -103,12 +109,11 @@
     });
 
     if (error) throw new Error(error.message);
-    
+
     if (data.user && !data.session) {
-      // Email confirmation required
       throw new Error('Check your email for a confirmation link!');
     }
-    
+
     return data.user;
   }
 
@@ -135,9 +140,7 @@
 
     const { data, error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin
-      }
+      options: { redirectTo: window.location.origin }
     });
 
     if (error) throw new Error(error.message);
@@ -168,13 +171,48 @@
   // AUTHORIZATION CHECKS
   // ==========================================
   function isLoggedIn() { return currentUser !== null; }
-  function isAdmin() { return currentUserRole === ROLES.ADMIN; }
+  function isSuperAdmin() { return currentUserRole === ROLES.SUPER_ADMIN; }
+  function isAdmin() { return currentUserRole === ROLES.ADMIN || currentUserRole === ROLES.SUPER_ADMIN; }
   function isClinicAssistant() { return currentUserRole === ROLES.CLINIC_ASSISTANT; }
   function isPatient() { return currentUserRole === ROLES.PATIENT; }
-  function canEditDoctors() { return currentUserRole === ROLES.ADMIN || currentUserRole === ROLES.CLINIC_ASSISTANT; }
-  function canManageUsers() { return currentUserRole === ROLES.ADMIN; }
-  function canDeleteDoctors() { return currentUserRole === ROLES.ADMIN; }
-  function canAddDoctors() { return currentUserRole === ROLES.ADMIN; }
+
+  // Permission checks
+  function canEditDoctors() {
+    return [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.CLINIC_ASSISTANT].includes(currentUserRole);
+  }
+  function canDeleteDoctors() {
+    return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
+  }
+  function canAddDoctors() {
+    return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
+  }
+  function canManageUsers() {
+    return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
+  }
+  function canManageAdmins() {
+    return currentUserRole === ROLES.SUPER_ADMIN; // Only super admin can promote/demote admins
+  }
+  function canAccessAdminPanel() {
+    return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
+  }
+  function canManageSiteSettings() {
+    return currentUserRole === ROLES.SUPER_ADMIN;
+  }
+  function canExportData() {
+    return [ROLES.SUPER_ADMIN, ROLES.ADMIN].includes(currentUserRole);
+  }
+
+  // Check if user can change a target user's role
+  function canChangeRole(targetRole, newRole) {
+    if (currentUserRole === ROLES.SUPER_ADMIN) return true; // Super admin can do anything
+    if (currentUserRole === ROLES.ADMIN) {
+      // Admin cannot promote to admin/super_admin or demote other admins/super_admins
+      if (targetRole === ROLES.SUPER_ADMIN || targetRole === ROLES.ADMIN) return false;
+      if (newRole === ROLES.SUPER_ADMIN || newRole === ROLES.ADMIN) return false;
+      return true; // Can change patient <-> clinic_assistant
+    }
+    return false;
+  }
 
   // ==========================================
   // SUPABASE: RATINGS
@@ -183,16 +221,13 @@
     if (!supabaseClient || !currentUser) return null;
 
     try {
-      // Upsert individual rating
       const { error: ratingError } = await supabaseClient
         .from('ratings')
         .upsert({
           user_id: currentUser.id,
           doctor_id: doctorId,
           value: value,
-        }, {
-          onConflict: 'user_id,doctor_id'
-        });
+        }, { onConflict: 'user_id,doctor_id' });
 
       if (ratingError) throw ratingError;
 
@@ -207,16 +242,9 @@
       const total = allRatings.reduce((sum, r) => sum + r.value, 0);
       const count = allRatings.length;
 
-      // Upsert aggregate
       await supabaseClient
         .from('doctor_ratings')
-        .upsert({
-          doctor_id: doctorId,
-          total: total,
-          count: count,
-        }, {
-          onConflict: 'doctor_id'
-        });
+        .upsert({ doctor_id: doctorId, total, count }, { onConflict: 'doctor_id' });
 
       return { total, count, userRating: value };
     } catch (e) {
@@ -231,7 +259,6 @@
     try {
       let result = { total: 0, count: 0, userRating: 0 };
 
-      // Get aggregate
       const { data: aggData } = await supabaseClient
         .from('doctor_ratings')
         .select('total, count')
@@ -243,7 +270,6 @@
         result.count = aggData.count;
       }
 
-      // Get user's own rating
       if (currentUser) {
         const { data: userRating } = await supabaseClient
           .from('ratings')
@@ -252,9 +278,7 @@
           .eq('doctor_id', doctorId)
           .single();
 
-        if (userRating) {
-          result.userRating = userRating.value;
-        }
+        if (userRating) result.userRating = userRating.value;
       }
 
       return result;
@@ -317,7 +341,7 @@
   }
 
   // ==========================================
-  // SUPABASE: USER MANAGEMENT (Admin only)
+  // SUPABASE: USER MANAGEMENT
   // ==========================================
   async function getAllUsers() {
     if (!canManageUsers()) throw new Error('Unauthorized');
@@ -329,7 +353,6 @@
 
     if (error) throw new Error(error.message);
 
-    // Map to consistent format
     return data.map(u => ({
       id: u.id,
       email: u.email,
@@ -343,6 +366,17 @@
   async function updateUserRole(userId, newRole) {
     if (!canManageUsers()) throw new Error('Unauthorized');
     if (!Object.values(ROLES).includes(newRole)) throw new Error('Invalid role');
+
+    // Get target user's current role
+    const { data: target } = await supabaseClient
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .single();
+
+    if (target && !canChangeRole(target.role, newRole)) {
+      throw new Error('You do not have permission to change this user\'s role');
+    }
 
     const { error } = await supabaseClient
       .from('profiles')
@@ -375,7 +409,7 @@
       if (badge) badge.className = 'role-badge role-' + currentUserRole;
     }
 
-    if (adminLink) adminLink.style.display = (currentUserRole === ROLES.ADMIN) ? 'inline-flex' : 'none';
+    if (adminLink) adminLink.style.display = canAccessAdminPanel() ? 'inline-flex' : 'none';
     closeAuthModal();
   }
 
@@ -546,14 +580,16 @@
   }
 
   // ==========================================
-  // PUBLIC API (same interface as before)
+  // PUBLIC API
   // ==========================================
   window.AuthManager = {
     init: initAuth,
     setupEvents: setupAuthEvents,
     register, login, googleSignIn, logout, resetPassword,
-    isLoggedIn, isAdmin, isClinicAssistant, isPatient,
+    isLoggedIn, isSuperAdmin, isAdmin, isClinicAssistant, isPatient,
     canEditDoctors, canManageUsers, canDeleteDoctors, canAddDoctors,
+    canManageAdmins, canAccessAdminPanel, canManageSiteSettings, canExportData,
+    canChangeRole,
     openAuthModal, closeAuthModal,
     rateDoctorFirestore, getDoctorRatingFirestore,
     addDoctorFirestore, updateDoctorFirestore, deleteDoctorFirestore,
