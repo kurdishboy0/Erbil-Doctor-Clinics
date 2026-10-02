@@ -6,7 +6,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "GULL center",
-      "phone": "",
+      "phone": "07502585877",
       "rating": 0,
       "ratingCount": 0
     },
@@ -66,7 +66,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "rawsht",
-      "phone": "",
+      "phone": "07502353060",
       "rating": 0,
       "ratingCount": 0
     },
@@ -206,7 +206,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "has her own center",
-      "phone": "",
+      "phone": "07506864774",
       "rating": 0,
       "ratingCount": 0
     },
@@ -356,7 +356,7 @@ const DOCTORS_DATA = {
       "specialty": "Cardiologist",
       "area": "40 Meter Street",
       "clinic": "shatella (AMC)",
-      "phone": "",
+      "phone": "07503945178",
       "rating": 0,
       "ratingCount": 0
     },
@@ -366,7 +366,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "shatella (AMC)",
-      "phone": "",
+      "phone": "07501441311",
       "rating": 0,
       "ratingCount": 0
     },
@@ -466,7 +466,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "tabib center",
-      "phone": "",
+      "phone": "07502708228",
       "rating": 0,
       "ratingCount": 0
     },
@@ -556,7 +556,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "markaz akya",
-      "phone": "",
+      "phone": "07503866121",
       "rating": 0,
       "ratingCount": 0
     },
@@ -586,7 +586,7 @@ const DOCTORS_DATA = {
       "specialty": "Cardiologist",
       "area": "40 Meter Street",
       "clinic": "sarnas",
-      "phone": "",
+      "phone": "07501438860",
       "rating": 0,
       "ratingCount": 0
     },
@@ -666,7 +666,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "new hair center",
-      "phone": "",
+      "phone": "07501840005",
       "rating": 0,
       "ratingCount": 0
     },
@@ -866,7 +866,7 @@ const DOCTORS_DATA = {
       "specialty": "Neurosurgeon",
       "area": "40 Meter Street",
       "clinic": "arzheen",
-      "phone": "",
+      "phone": "07511904201 / 07503599009",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1046,7 +1046,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "dimany 3amal",
-      "phone": "",
+      "phone": "07717791103",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1146,7 +1146,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "the beauty clinic",
-      "phone": "",
+      "phone": "07736662828",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1266,7 +1266,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "vian derma clinic",
-      "phone": "",
+      "phone": "07514669779",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1276,7 +1276,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "vian derma clinic",
-      "phone": "",
+      "phone": "07514667997",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1316,7 +1316,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "dr.ako clinic",
-      "phone": "",
+      "phone": "07503334242",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1346,7 +1346,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "turfi",
-      "phone": "",
+      "phone": "07507403240",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1356,7 +1356,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "zhewan",
-      "phone": "",
+      "phone": "07503567256",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1416,7 +1416,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "sofya center",
-      "phone": "",
+      "phone": "07502389401",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1536,7 +1536,7 @@ const DOCTORS_DATA = {
       "specialty": "General Surgeon",
       "area": "40 Meter Street",
       "clinic": "zhilwan",
-      "phone": "",
+      "phone": "07512465534",
       "rating": 0,
       "ratingCount": 0
     },
@@ -1876,7 +1876,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "Novella tre",
-      "phone": "",
+      "phone": "07514584132",
       "rating": 0,
       "ratingCount": 0
     },
@@ -2146,7 +2146,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "malaeika rahma",
-      "phone": "",
+      "phone": "07505020606",
       "rating": 0,
       "ratingCount": 0
     },
@@ -2266,7 +2266,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "shahrazad",
-      "phone": "",
+      "phone": "07501007841",
       "rating": 0,
       "ratingCount": 0
     },
@@ -2446,7 +2446,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "dli darun",
-      "phone": "",
+      "phone": "07501443079",
       "rating": 0,
       "ratingCount": 0
     },
@@ -2576,7 +2576,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "arbil beauty center",
-      "phone": "",
+      "phone": "07509998979",
       "rating": 0,
       "ratingCount": 0
     },
@@ -3146,7 +3146,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "zaz beauty",
-      "phone": "",
+      "phone": "07517593321",
       "rating": 0,
       "ratingCount": 0
     },
@@ -3466,7 +3466,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "regay rozhhalat",
-      "phone": "",
+      "phone": "07503292558",
       "rating": 0,
       "ratingCount": 0
     },
@@ -3676,7 +3676,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "Top Med",
-      "phone": "",
+      "phone": "07507097933",
       "rating": 0,
       "ratingCount": 0
     },
@@ -3746,7 +3746,7 @@ const DOCTORS_DATA = {
       "specialty": "Dermatologist",
       "area": "40 Meter Street",
       "clinic": "diman",
-      "phone": "",
+      "phone": "07509786040",
       "rating": 0,
       "ratingCount": 0
     },
@@ -4096,7 +4096,7 @@ const DOCTORS_DATA = {
       "specialty": "Orthopedic Surgeon",
       "area": "Gullan Street",
       "clinic": "Best med pharmacy",
-      "phone": "",
+      "phone": "07514206544",
       "rating": 0,
       "ratingCount": 0
     },
@@ -5046,7 +5046,7 @@ const DOCTORS_DATA = {
       "specialty": "Rheumatologist",
       "area": "60 Meter Street",
       "clinic": "bnkay azady",
-      "phone": "",
+      "phone": "07500442010",
       "rating": 0,
       "ratingCount": 0
     },
@@ -5156,7 +5156,7 @@ const DOCTORS_DATA = {
       "specialty": "Pediatrician",
       "area": "60 Meter Street",
       "clinic": "Novella Breath",
-      "phone": "",
+      "phone": "07518869011",
       "rating": 0,
       "ratingCount": 0
     },
@@ -5226,7 +5226,7 @@ const DOCTORS_DATA = {
       "specialty": "Pulmonologist",
       "area": "60 Meter Street",
       "clinic": "Dahatu pharmacy",
-      "phone": "",
+      "phone": "07505671920",
       "rating": 0,
       "ratingCount": 0
     },
@@ -8256,7 +8256,7 @@ const DOCTORS_DATA = {
       "specialty": "Plastic Surgeon",
       "area": "Koya Street",
       "clinic": "Zheen International",
-      "phone": "07506141003, 07501493131",
+      "phone": "07506141003 / 07501493131 / 07504287142",
       "rating": 0,
       "ratingCount": 0
     },
