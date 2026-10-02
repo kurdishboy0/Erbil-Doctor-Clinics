@@ -742,3 +742,64 @@
   }
 
 })();
+
+// ==========================================
+// SUGGEST EDIT FEATURE
+// ==========================================
+function openSuggestModal(doctorId, doctorName) {
+  const overlay = document.getElementById('suggestModal');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  document.getElementById('suggestDoctorId').value = doctorId;
+  document.getElementById('suggestDoctorName').textContent = doctorName;
+  document.getElementById('suggestMessage').value = '';
+}
+
+function closeSuggestModal() {
+  const overlay = document.getElementById('suggestModal');
+  if (overlay) overlay.style.display = 'none';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const suggestForm = document.getElementById('suggestEditForm');
+  if (suggestForm) {
+    suggestForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const doctorId = document.getElementById('suggestDoctorId').value;
+      const message = document.getElementById('suggestMessage').value.trim();
+      const btn = document.getElementById('suggestSubmitBtn');
+      const errEl = document.getElementById('suggestError');
+      const succEl = document.getElementById('suggestSuccess');
+      
+      if (!message) return;
+      
+      errEl.style.display = 'none';
+      succEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      
+      try {
+        if (window.AuthManager && window.AuthManager.submitSuggestion) {
+          await window.AuthManager.submitSuggestion(doctorId, message);
+        } else {
+          // Fallback if not configured
+          throw new Error('System not configured yet');
+        }
+        
+        succEl.textContent = 'Thank you! Your suggestion has been sent to the admins.';
+        succEl.style.display = 'block';
+        setTimeout(closeSuggestModal, 2000);
+      } catch (error) {
+        errEl.textContent = 'Error: ' + error.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Suggestion';
+      }
+    });
+  }
+  
+  const closeBtn = document.getElementById('suggestModalClose');
+  if (closeBtn) closeBtn.addEventListener('click', closeSuggestModal);
+});

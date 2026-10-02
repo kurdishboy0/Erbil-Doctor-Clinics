@@ -582,7 +582,28 @@
   // ==========================================
   // PUBLIC API
   // ==========================================
+  
+  // ==========================================
+  // SUGGEST EDIT
+  // ==========================================
+  async function submitSuggestion(doctorId, message) {
+    if (!supabaseClient) throw new Error('Supabase not configured');
+    if (!currentUser) throw new Error('Please sign in to suggest edits.');
+    
+    const { error } = await supabaseClient
+      .from('suggestions')
+      .insert({
+        doctor_id: doctorId,
+        user_id: currentUser.id,
+        message: message,
+        status: 'pending'
+      });
+      
+    if (error) throw new Error(error.message);
+  }
+
   window.AuthManager = {
+    submitSuggestion,
     init: initAuth,
     setupEvents: setupAuthEvents,
     register, login, googleSignIn, logout, resetPassword,

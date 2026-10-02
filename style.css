@@ -1345,3 +1345,99 @@ body {
   .user-table { font-size: 0.8rem; }
   .user-table th:nth-child(3), .user-table td:nth-child(3) { display: none; }
 }
+
+/* --- NEW ANIMATIONS & MOBILE IMPROVEMENTS --- */
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.doctor-card {
+  animation: fadeInSlideUp 0.4s ease-out forwards;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.doctor-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-content, .auth-modal-body {
+  animation: fadeInSlideUp 0.3s ease-out forwards;
+}
+
+/* Map Button */
+.map-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s ease;
+  margin-top: 8px;
+}
+.map-btn:hover {
+  background: #d2e3fc;
+}
+
+/* Suggest Edit Button */
+.suggest-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+.suggest-edit-btn:hover {
+  background: var(--border-light);
+  color: var(--text);
+  border-style: solid;
+}
+
+/* Suggest Edit Modal Specific */
+#suggestEditForm textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  resize: vertical;
+  min-height: 80px;
+  margin-bottom: 12px;
+}
+
+/* Suggestion Card (Admin) */
+.suggestion-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.suggestion-card h4 { margin: 0 0 4px 0; color: var(--primary); }
+.suggestion-card p { margin: 0 0 8px 0; font-size: 0.9rem; }
+.suggestion-meta { font-size: 0.8rem; color: var(--text-light); }
+
+/* Improved mobile padding */
+@media (max-width: 768px) {
+  .search-box {
+    padding: 15px;
+  }
+  .filters {
+    grid-template-columns: 1fr;
+  }
+}

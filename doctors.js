@@ -5455,8 +5455,8 @@ const DOCTORS_DATA = {
       "name": "Idres Ja3far Jalaladdin",
       "specialty": "Cardiologist",
       "area": "100 Meter Street",
-      "clinic": "",
-      "phone": "",
+      "clinic": "Erbil International Hospital",
+      "phone": "07511284040 / 07511283030",
       "rating": 0,
       "ratingCount": 0
     },
@@ -10616,7 +10616,7 @@ const DOCTORS_DATA = {
       "specialty": "Cardiologist",
       "area": "Ankawa",
       "clinic": "Maryamana",
-      "phone": "",
+      "phone": "07514554141 / 07514554242",
       "rating": 0,
       "ratingCount": 0
     },
@@ -11346,7 +11346,7 @@ const DOCTORS_DATA = {
       "specialty": "Cardiac Surgeon",
       "area": "Farmanbaran",
       "clinic": "Sayay mihrabany",
-      "phone": "",
+      "phone": "07501001857",
       "rating": 0,
       "ratingCount": 0
     },
