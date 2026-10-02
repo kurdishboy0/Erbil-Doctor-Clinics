@@ -1,15 +1,9 @@
 /* =============================================
-   FIREBASE CONFIGURATION
+   SUPABASE CONFIGURATION
    ============================================= */
 
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+const SUPABASE_URL = 'https://hwjsgsfihbmczysptcgm.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_iSlKHUQ6rvJ8ApTrp5bSJg_gneMV7fV';
 
 // ⚠️ ADMIN ACCOUNTS
 // These emails auto-assign roles on first registration
@@ -38,31 +32,27 @@ const ROLE_HIERARCHY = {
   [ROLES.SUPER_ADMIN]: 3
 };
 
-// Initialize Firebase
-let firebaseApp = null;
-let db = null;
-let auth = null;
-let firebaseReady = false;
+// Initialize Supabase
+let supabaseClient = null;
+let firebaseReady = false; // keeping this name for compatibility with app.js
 
 try {
-  if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-    firebaseApp = firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-    auth = firebase.auth();
+  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     firebaseReady = true;
-    console.log('✅ Firebase initialized');
+    console.log('✅ Supabase initialized');
   } else {
-    console.warn('⚠️ Firebase not configured. Auth features disabled.');
+    console.warn('⚠️ Supabase not configured. Auth features disabled.');
   }
 } catch (e) {
-  console.error('❌ Firebase init error:', e);
+  console.error('❌ Supabase init error:', e);
 }
 
-window.db = db;
-window.auth = auth;
+window.supabaseClient = supabaseClient;
 window.ROLES = ROLES;
 window.ROLE_LABELS = ROLE_LABELS;
 window.ROLE_HIERARCHY = ROLE_HIERARCHY;
 window.SUPER_ADMIN_EMAIL = SUPER_ADMIN_EMAIL;
 window.ADMIN_EMAILS = ADMIN_EMAILS;
+window.ADMIN_EMAIL = SUPER_ADMIN_EMAIL; // backward compat
 window.firebaseReady = firebaseReady;
